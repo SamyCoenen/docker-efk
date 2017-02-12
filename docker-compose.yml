@@ -2,29 +2,36 @@ version: "2"
 services:
   nginx:
     container_name: nginx_efk
-    build: ./nginx
-    volumes:
-      - "./data:/var/log/efk/log/"
+    image: nginx
     ports:
-      - "8080:80"
+      - "80:80"
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: localhost:24224
+        tag: "nginx.docker.{{.ID}}"
+    restart: always
+    depends_on:
+      - fluentd
   fluentd:
     container_name: fluentd_efk
     build: ./fluentd
     volumes:
-      - "./data:/var/log/efk/log/"
       - "./fluentd:/home/fluent/data:ro"
     ports:
       - "24224:24224"
       - "5140:5140"
       - "24284:24284"
-    depends_on:
-      - nginx
+    restart: always
   elasticsearch:
     container_name: elasticsearch_efk
     image: elasticsearch
+    volumes:
+      - "./elasticdata:/usr/share/elasticsearch/data"
     ports:
       - "9200:9200"
       - "9300:9300"
+    restart: always
     depends_on:
       - fluentd
   kibana:
@@ -32,5 +39,11 @@ services:
     image: kibana
     ports:
       - "5601:5601"
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: localhost:24224
+        tag: "kibana.docker.{{.ID}}"
+    restart: always
     depends_on:
       - elasticsearch
